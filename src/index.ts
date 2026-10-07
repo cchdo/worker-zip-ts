@@ -21,18 +21,6 @@ const ZIP_END_OF_CENTRAL_DIRECTORY_LENGTH = 22; // length of the central directo
 const ZIP_VERSION = 45; // version 4.5 for zip64
 const ZIP_VERSION_UNIX = ZIP_VERSION << 8 | 3; // unix is "3"
 
-const DATA_KEYS2 = [
-	{filename: "33RR20220430su.txt", key: "d0/43/d0432cfd4443ca8990e28c56f9fb6be47d014cda04f54e7808ba12926e2d7406", crc32: "67b7e759", fileSize: 20686},
-	{filename: "33RO20161119_hy1.csv", key: "38/e0/38e0394ad012dd1b6469c406048479a6f75894451ab2c7867f697aa66f4f08a2", crc32: "7c9b89a2", fileSize: 3234923},
-	{filename: "1_33RO20161119_hy1.csv", key: "38/e0/38e0394ad012dd1b6469c406048479a6f75894451ab2c7867f697aa66f4f08a2", crc32: "7c9b89a2", fileSize: 3234923},
-	{filename: "2_33RO20161119_hy1.csv", key: "38/e0/38e0394ad012dd1b6469c406048479a6f75894451ab2c7867f697aa66f4f08a2", crc32: "7c9b89a2", fileSize: 3234923},
-	{filename: "3_33RO20161119_hy1.csv", key: "38/e0/38e0394ad012dd1b6469c406048479a6f75894451ab2c7867f697aa66f4f08a2", crc32: "7c9b89a2", fileSize: 3234923},
-	{filename: "4_33RO20161119_hy1.csv", key: "38/e0/38e0394ad012dd1b6469c406048479a6f75894451ab2c7867f697aa66f4f08a2", crc32: "7c9b89a2", fileSize: 3234923},
-	{filename: "5_33RO20161119_hy1.csv", key: "38/e0/38e0394ad012dd1b6469c406048479a6f75894451ab2c7867f697aa66f4f08a2", crc32: "7c9b89a2", fileSize: 3234923},
-	{filename: "6_33RO20161119_hy1.csv", key: "38/e0/38e0394ad012dd1b6469c406048479a6f75894451ab2c7867f697aa66f4f08a2", crc32: "7c9b89a2", fileSize: 3234923},
-	{filename: "7_33RO20161119_hy1.csv", key: "38/e0/38e0394ad012dd1b6469c406048479a6f75894451ab2c7867f697aa66f4f08a2", crc32: "7c9b89a2", fileSize: 3234923},
-]
-
 interface R2ZipInfo {
 	filename: string,
 	key: string,
@@ -118,14 +106,25 @@ const endOfCentralDirectory = (centralDirectoryRecords: Map<string, Uint8Array>,
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+		const url = new URL(request.url);
+		// only /search and /cruise have bulk download routes
+		if (!(url.pathname.startsWith("/search") || url.pathname.startsWith("/cruise"))) {
+			return new Response("not found", {status: 404})
+		}
+
 		const hdofs = env.HDOFS;
 		const moddate = new Date(); // matches behavior of mod_zip which uses "now"
 
 		const localFileHeaders: Map<string, Uint8Array> = new Map();
 		const centralDirectoryRecords: Map<string, Uint8Array> = new Map();
 
+
+		const cchdo_list_response = await fetch(`https://cchdo.ucsd.edu${url.pathname}${url.search}`, { headers: { "X-Cf-Worker": "1" } });
+		const contentDisposition = cchdo_list_response.headers.get("content-disposition")!;
+		const cchdo_list: R2ZipInfo[] = await cchdo_list_response.json(); // kinda intentionally unhandled
+
 		let ptr = 0; // need to keep track of the byteOffsets
-		for (const item of DATA_KEYS2) {
+		for (const item of cchdo_list) {
 			const mapKey = item.filename; //use the filename as the key for above because having duplicates is... bad
 			if (localFileHeaders.has(mapKey)) {
 				return new Response("bad request", { status: 500 });
@@ -146,7 +145,7 @@ export default {
 
 		//Cloudflare best practice
 		const pipeEm = (async () => {
-			for (const item of DATA_KEYS2) {
+			for (const item of cchdo_list) {
 				const response = await hdofs.get(item.key);
 				if (response?.body) {
 					await ReadableStream.from([localFileHeaders.get(item.filename)]).pipeTo(writable, { preventClose: true });
@@ -159,6 +158,6 @@ export default {
 		})();
 
 
-		return new Response(readable, {headers: {"Content-Type": "application/zip", "Content-Disposition": "attachment; filename=test.zip"}});
+		return new Response(readable, {headers: {"Content-Type": "application/zip", "Content-Disposition": contentDisposition}});
 	},
 } satisfies ExportedHandler<Env>;
