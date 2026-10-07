@@ -111,6 +111,9 @@ export default {
 		if (!(url.pathname.startsWith("/search") || url.pathname.startsWith("/cruise"))) {
 			return new Response("not found", {status: 404})
 		}
+		if (request.method !== "GET") {
+			return new Response("method not allowed", {status: 405, headers: {"Allow": "GET"}})
+		}
 
 		const hdofs = env.HDOFS;
 		const moddate = new Date(); // matches behavior of mod_zip which uses "now"
