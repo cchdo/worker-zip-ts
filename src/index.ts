@@ -19,7 +19,7 @@ const ZIP_LOCAL_FILE_HEADER_LENGTH 				= 30; // length of the local file header 
 const ZIP_CENTRAL_DIRECTORY_LENGTH        = 46; // length of the central directory file record without filename
 const ZIP_END_OF_CENTRAL_DIRECTORY_LENGTH = 22; // length of the central directory file record without filename
 const ZIP_VERSION = 45; // version 4.5 for zip64
-const ZIP_VERSION_UNIX = ZIP_VERSION << 8 | 3; // unix is "3"
+const ZIP_VERSION_UNIX = 3 << 8 | ZIP_VERSION; // unix is "3"
 
 interface R2ZipInfo {
 	filename: string,
@@ -99,7 +99,7 @@ const endOfCentralDirectory = (centralDirectoryRecords: Map<string, Uint8Array>,
 	buffer.setUint16(8, centralDirectoryRecords.size, true); // number of records on this disk
 	buffer.setUint16(10, centralDirectoryRecords.size, true); // total number of records
 	buffer.setUint32(12, centralDirectorySize, true);
-	buffer.setUint32(16, fileOffset + centralDirectorySize, true);
+	buffer.setUint32(16, fileOffset, true);
 	// no comments (offset 20, byte 2)
 	return new Uint8Array(buffer.buffer)
 }
