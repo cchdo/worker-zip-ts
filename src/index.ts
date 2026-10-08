@@ -84,7 +84,7 @@ const centralDirectoryRecord = (zi: R2ZipInfo, fileOffset: number, moddate: Date
 	// no disk numbers (offset 34, 2 bytes) though maybe set to FFFF once zip64 added
 	// no internal attrs (offset 36, 2 bytes)
 	buffer.setUint16(40, 0x644, true); // probably the most confusing, only the low bits being set (actual external attrs start at offset 38)
-	buffer.setUint32(42, fileOffset);
+	buffer.setUint32(42, fileOffset, true);
 	const uint8view = new Uint8Array(buffer.buffer)
 	uint8view.set(encodedFilename, ZIP_CENTRAL_DIRECTORY_LENGTH)
 	return uint8view
