@@ -45,7 +45,8 @@ const locaFileHeader = (zi: R2ZipInfo, moddate: Date) => {
 
 	buffer.setUint32(0, ZIP_LOCAL_FILE_HEADER_MAGIC_NUMBER);  // set magic number
 	buffer.setUint16(4, ZIP_VERSION, true); // set min version
-	// General purpose bit flag (bytes 6 and 7) remain zero since we will know the crc32 and compression is "stored"
+	// General purpose bit flag (bit 1, 2 and 3) remain zero since we will know the crc32 and compression is "stored"
+	buffer.setUint16(6, 1 << 11, true) // set bit 11 for UTF8
 	// Compression method (bytes 8 and 9) remain 0 for "stored"
 	buffer.setUint16(10, dosTime(moddate), true);
 	buffer.setUint16(12, dosDate(moddate), true);
