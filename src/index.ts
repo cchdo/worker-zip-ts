@@ -8,12 +8,21 @@ const ZIP_END_OF_CENTRAL_DIRECTORY_LENGTH = 22; // length of the central directo
 const ZIP_VERSION = 45; // version 4.5 for zip64
 const ZIP_VERSION_UNIX = 3 << 8 | ZIP_VERSION; // unix is "3"
 
-interface R2ZipInfo {
+interface BaseInfo {
 	filename: string,
-	key: string,
 	crc32: string,
 	fileSize: number,
 }
+
+interface KeyedZipInfo extends BaseInfo {
+	key: string,
+}
+
+interface LiteralZipInfo extends BaseInfo {
+	body: string,
+}
+
+type R2ZipInfo = KeyedZipInfo | LiteralZipInfo;
 
 const dosDate = (date: Date): number => {
 	return date.getDate() | (date.getMonth() + 1) << 5 | (date.getFullYear() - 1980) << 9
@@ -110,7 +119,8 @@ export default {
 		const centralDirectoryRecords: Map<string, Uint8Array> = new Map();
 
 
-		const cchdo_list_response = await fetch(`https://cchdo.ucsd.edu${url.pathname}${url.search}`, { headers: { "X-Cf-Worker": "1" } });
+		//const cchdo_list_response = await fetch(`https://cchdo.ucsd.edu${url.pathname}${url.search}`, { headers: { "X-Cf-Worker": "1" } });
+		const cchdo_list_response = await fetch(`http://localhost:5001${url.pathname}${url.search}`, { headers: { "X-Cf-Worker": "1" } });
 		const contentDisposition = cchdo_list_response.headers.get("content-disposition")!;
 		const cchdo_list: R2ZipInfo[] = await cchdo_list_response.json(); // kinda intentionally unhandled
 
@@ -137,10 +147,16 @@ export default {
 		//Cloudflare best practice
 		const pipeEm = (async () => {
 			for (const item of cchdo_list) {
-				const response = await hdofs.get(item.key);
-				if (response?.body) {
+				if ("key" in item) {
+					const response = await hdofs.get(item.key);
+					if (response?.body) {
+						await ReadableStream.from([localFileHeaders.get(item.filename)]).pipeTo(writable, { preventClose: true });
+						await response.body.pipeTo(writable, { preventClose: true })
+					}
+				} else {
+					// There is a literal file in the response from CCHDO
 					await ReadableStream.from([localFileHeaders.get(item.filename)]).pipeTo(writable, { preventClose: true });
-					await response.body.pipeTo(writable, {preventClose: true})
+					await ReadableStream.from([Uint8Array.fromBase64(item.body)]).pipeTo(writable, { preventClose: true })
 				}
 			}
 			await ReadableStream.from(centralDirectoryRecords.values()).pipeTo(writable, { preventClose: true });
