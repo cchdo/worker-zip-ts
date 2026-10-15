@@ -119,8 +119,7 @@ export default {
 		const centralDirectoryRecords: Map<string, Uint8Array> = new Map();
 
 
-		//const cchdo_list_response = await fetch(`https://cchdo.ucsd.edu${url.pathname}${url.search}`, { headers: { "X-Cf-Worker": "1" } });
-		const cchdo_list_response = await fetch(`http://localhost:5001${url.pathname}${url.search}`, { headers: { "X-Cf-Worker": "1" } });
+		const cchdo_list_response = await fetch(`https://cchdo.ucsd.edu${url.pathname}${url.search}`, { headers: { "X-Cf-Worker": "1" } });
 		const contentDisposition = cchdo_list_response.headers.get("content-disposition")!;
 		const cchdo_list: R2ZipInfo[] = await cchdo_list_response.json(); // kinda intentionally unhandled
 
